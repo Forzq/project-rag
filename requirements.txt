@@ -1,1 +1,5 @@
 pypdf
+llama-cloud>=2.1
+python-dotenv
+langchain-text-splitters
+requests

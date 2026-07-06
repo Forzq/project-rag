@@ -1,4 +1,6 @@
 env/
 output/
+chunks_output/
+.env
 *.pyc
 __pycache__/
