@@ -3,3 +3,8 @@ llama-cloud>=2.1
 python-dotenv
 langchain-text-splitters
 requests
+numpy
+sentence-transformers
+chromadb
+fastapi
+uvicorn

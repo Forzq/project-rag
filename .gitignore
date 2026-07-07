@@ -1,6 +1,8 @@
 env/
 output/
 chunks_output/
+embeddings_output/
+chroma_db/
 .env
 *.pyc
 __pycache__/

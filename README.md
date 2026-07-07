@@ -79,3 +79,47 @@ python scripts\chunk_semantic.py md_output\my_document.md -o chunks_output\seman
 ```
 
 Results are saved as separate Markdown files in `chunks_output/` for manual comparison.
+
+## Embeddings
+
+Generate embeddings for an existing chunks file:
+
+```powershell
+python scripts\embed_chunks.py chunks_output\harry_potter_1_embedding\semantic_chunks.md --output-dir embeddings_output\harry_potter_1_semantic
+```
+
+The script saves:
+
+```text
+embeddings_output\harry_potter_1_semantic\openai_text_embedding_3_small.npy
+embeddings_output\harry_potter_1_semantic\intfloat_e5_large_v2.npy
+embeddings_output\harry_potter_1_semantic\chunks_metadata.json
+```
+
+## ChromaDB
+
+Load existing chunks and embeddings into local persistent ChromaDB:
+
+```powershell
+python scripts\load_chroma.py --collection harry_potter_openai_1536 --embeddings embeddings_output\harry_potter_1_semantic\openai_text_embedding_3_small.npy --metadata embeddings_output\harry_potter_1_semantic\chunks_metadata.json --reset
+```
+
+The local Chroma database is stored in `chroma_db/`.
+
+## Basic Retrieval UI
+
+Run the local FastAPI app:
+
+```powershell
+uvicorn app:app --reload
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000
+```
+
+The app embeds your query with `openai/text-embedding-3-small`, searches the
+`harry_potter_openai_1536` Chroma collection with cosine similarity, and shows
+the top-k chunks for visual relevance review.
