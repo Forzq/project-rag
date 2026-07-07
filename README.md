@@ -1,5 +1,20 @@
 # project-rag
 
+## Project structure
+
+Core reusable code lives in `src/rag_local/`:
+
+```text
+chunking.py      # fixed, recursive, semantic chunking logic
+chunk_io.py      # read/write chunk files
+embeddings.py    # OpenRouter and HuggingFace embedders
+vector_store.py  # ChromaDB loading and retrieval helpers
+config.py        # shared model names and paths
+```
+
+Files in `scripts/` are thin CLI entry points that call this shared code.
+The FastAPI app in `app.py` uses the same shared retrieval and embedding classes.
+
 ## PDF text extraction
 
 Install dependencies:

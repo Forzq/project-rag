@@ -5,6 +5,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from src.rag_local.config import DEFAULT_SEMANTIC_CHUNKING_MODEL
+
 
 def parse_args() -> argparse.Namespace:
     # Этот скрипт запускает все три способа chunking одной командой.
@@ -54,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     # Embedding-модель для semantic chunking.
     parser.add_argument(
         "--semantic-model",
-        default="qwen/qwen3-embedding-4b",
+        default=DEFAULT_SEMANTIC_CHUNKING_MODEL,
         help="OpenRouter embedding model for semantic chunking.",
     )
 
