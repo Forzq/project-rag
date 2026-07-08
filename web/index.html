@@ -136,6 +136,28 @@
     button:hover { background: var(--accent-strong); }
     button:disabled { opacity: 0.65; cursor: not-allowed; }
 
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .tab-button {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .tab-button.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .view[hidden] {
+      display: none;
+    }
+
     .summary {
       color: var(--muted);
       font-size: 14px;
@@ -191,6 +213,21 @@
       font-size: 14px;
     }
 
+    .answer {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .answer-text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 15px;
+      margin-top: 10px;
+    }
+
     .error {
       background: #fff1f2;
       border: 1px solid #fecdd3;
@@ -220,54 +257,87 @@
       <div class="status" id="status">Checking collection...</div>
     </header>
 
-    <section class="search-panel">
-      <label for="query">Query</label>
-      <textarea id="query" placeholder="Example: Who are the Dursleys?"></textarea>
+    <nav class="tabs">
+      <button class="tab-button active" id="labTab" type="button">Retrieval Lab</button>
+      <button class="tab-button" id="chatTab" type="button">Chat</button>
+    </nav>
 
-      <div class="controls">
-        <div class="control">
-          <label for="topK">Top K</label>
-          <select id="topK">
-            <option value="5">5</option>
-            <option value="10">10</option>
-            <option value="20" selected>20</option>
-            <option value="30">30</option>
-            <option value="50">50</option>
-          </select>
+    <section class="view" id="labView">
+      <section class="search-panel">
+        <label for="query">Query</label>
+        <textarea id="query" placeholder="Example: Who are the Dursleys?"></textarea>
+
+        <div class="controls">
+          <div class="control">
+            <label for="topK">Top K</label>
+            <select id="topK">
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="searchMode">Mode</label>
+            <select id="searchMode">
+              <option value="hybrid" selected>Hybrid</option>
+              <option value="vector">Vector</option>
+              <option value="bm25">BM25</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="year">Year</label>
+            <input id="year" type="number" min="0" placeholder="Any" />
+          </div>
+          <div class="control">
+            <label for="author">Author</label>
+            <input id="author" type="text" placeholder="Any" />
+          </div>
+          <div class="control">
+            <label for="documentType">Type</label>
+            <input id="documentType" type="text" placeholder="book" />
+          </div>
+          <button id="searchButton">Search</button>
+          <button id="rerankButton" disabled>Rerank top 5</button>
         </div>
-        <div class="control">
-          <label for="searchMode">Mode</label>
-          <select id="searchMode">
-            <option value="hybrid" selected>Hybrid</option>
-            <option value="vector">Vector</option>
-            <option value="bm25">BM25</option>
-          </select>
-        </div>
-        <div class="control">
-          <label for="year">Year</label>
-          <input id="year" type="number" min="0" placeholder="Any" />
-        </div>
-        <div class="control">
-          <label for="author">Author</label>
-          <input id="author" type="text" placeholder="Any" />
-        </div>
-        <div class="control">
-          <label for="documentType">Type</label>
-          <input id="documentType" type="text" placeholder="book" />
-        </div>
-        <button id="searchButton">Search</button>
-        <button id="rerankButton" disabled>Rerank top 5</button>
-      </div>
-      <div id="error"></div>
+        <div id="error"></div>
+      </section>
+
+      <section id="results"></section>
     </section>
 
-    <section id="results"></section>
+    <section class="view" id="chatView" hidden>
+      <section class="search-panel">
+        <label for="chatQuery">Question</label>
+        <textarea id="chatQuery" placeholder="Example: Кто такой Гарри Поттер?"></textarea>
+
+        <div class="controls">
+          <div class="control">
+            <label for="contextStrategy">Context strategy</label>
+            <select id="contextStrategy">
+              <option value="auto" selected>Auto</option>
+              <option value="direct">Direct</option>
+              <option value="map_reduce">Map-reduce</option>
+            </select>
+          </div>
+          <button id="askButton">Ask</button>
+        </div>
+        <div id="chatError"></div>
+      </section>
+
+      <section id="answerResults"></section>
+    </section>
   </main>
 
   <script>
     const statusNode = document.getElementById("status");
     const errorNode = document.getElementById("error");
     const resultsNode = document.getElementById("results");
+    const labTab = document.getElementById("labTab");
+    const chatTab = document.getElementById("chatTab");
+    const labView = document.getElementById("labView");
+    const chatView = document.getElementById("chatView");
     const button = document.getElementById("searchButton");
     const rerankButton = document.getElementById("rerankButton");
     const queryNode = document.getElementById("query");
@@ -276,6 +346,11 @@
     const yearNode = document.getElementById("year");
     const authorNode = document.getElementById("author");
     const documentTypeNode = document.getElementById("documentType");
+    const chatErrorNode = document.getElementById("chatError");
+    const answerResultsNode = document.getElementById("answerResults");
+    const askButton = document.getElementById("askButton");
+    const chatQueryNode = document.getElementById("chatQuery");
+    const contextStrategyNode = document.getElementById("contextStrategy");
     let lastSearchData = null;
 
     function escapeHtml(value) {
@@ -297,10 +372,18 @@
         const response = await fetch("/api/health");
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || "Health check failed");
-        statusNode.textContent = `${data.collection} | ${data.count} chunks | ${data.embedding_model}`;
+        statusNode.textContent = `${data.collection} | ${data.count} chunks | ${data.embedding_model} | ${data.chat_model}`;
       } catch (error) {
         statusNode.textContent = "Collection unavailable";
       }
+    }
+
+    function switchView(view) {
+      const showLab = view === "lab";
+      labView.hidden = !showLab;
+      chatView.hidden = showLab;
+      labTab.classList.toggle("active", showLab);
+      chatTab.classList.toggle("active", !showLab);
     }
 
     function renderResults(data) {
@@ -345,6 +428,51 @@
       `).join("");
 
       resultsNode.innerHTML = summary + cards;
+    }
+
+    function renderAnswer(data) {
+      const summaries = data.map_summaries && data.map_summaries.length
+        ? `
+          <div class="summary">Map summaries</div>
+          ${data.map_summaries.map((summary, index) => `
+            <article class="result">
+              <div class="rank">Map #${index + 1}</div>
+              <div class="chunk-text">${escapeHtml(summary)}</div>
+            </article>
+          `).join("")}
+        `
+        : "";
+      const sources = data.sources.map((item) => `
+        <article class="result">
+          <div class="result-head">
+            <div>
+              <div class="rank">Source #${item.rank} | ${escapeHtml(item.id)}</div>
+              <div class="meta">
+                <span class="pill">original_rank: ${item.original_rank ?? "n/a"}</span>
+                <span class="pill">rerank: ${formatScore(item.rerank_score)}</span>
+                <span class="pill">year: ${item.year ?? "n/a"}</span>
+                <span class="pill">title: ${escapeHtml(item.title ?? "n/a")}</span>
+              </div>
+            </div>
+          </div>
+          <div class="chunk-text">${escapeHtml(item.text)}</div>
+        </article>
+      `).join("");
+
+      answerResultsNode.innerHTML = `
+        <article class="answer">
+          <div class="summary">
+            Query: <strong>${escapeHtml(data.query)}</strong><br>
+            Model: ${escapeHtml(data.chat_model)} | Strategy: ${escapeHtml(data.strategy)} | Context tokens: ${data.estimated_context_tokens}/${data.context_token_limit}<br>
+            Retrieval top-k: ${data.retrieval_top_k} | Rerank top-n: ${data.rerank_top_n}
+            ${data.warning ? `<br><strong>${escapeHtml(data.warning)}</strong>` : ""}
+          </div>
+          <div class="answer-text">${escapeHtml(data.answer)}</div>
+        </article>
+        ${summaries}
+        <div class="summary">Sources</div>
+        ${sources}
+      `;
     }
 
     async function runSearch() {
@@ -426,11 +554,56 @@
       }
     }
 
+    async function runAnswer() {
+      const query = chatQueryNode.value.trim();
+      const strategy = contextStrategyNode.value;
+
+      chatErrorNode.innerHTML = "";
+      answerResultsNode.innerHTML = "";
+
+      if (!query) {
+        chatErrorNode.innerHTML = '<div class="error">Enter a question first.</div>';
+        return;
+      }
+
+      askButton.disabled = true;
+      askButton.textContent = "Thinking...";
+
+      try {
+        const response = await fetch("/api/answer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            strategy,
+            retrieval_top_k: 20,
+            rerank_top_n: 5,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Answer generation failed");
+        renderAnswer(data);
+      } catch (error) {
+        chatErrorNode.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+      } finally {
+        askButton.disabled = false;
+        askButton.textContent = "Ask";
+      }
+    }
+
+    labTab.addEventListener("click", () => switchView("lab"));
+    chatTab.addEventListener("click", () => switchView("chat"));
     button.addEventListener("click", runSearch);
     rerankButton.addEventListener("click", runRerank);
+    askButton.addEventListener("click", runAnswer);
     queryNode.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
         runSearch();
+      }
+    });
+    chatQueryNode.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        runAnswer();
       }
     });
 

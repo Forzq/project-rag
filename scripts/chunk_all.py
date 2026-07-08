@@ -56,6 +56,12 @@ def parse_args() -> argparse.Namespace:
         default=2000,
         help="Maximum chunk size for semantic chunking.",
     )
+    parser.add_argument(
+        "--semantic-min-chars",
+        type=int,
+        default=300,
+        help="Small semantic chunks are merged until they reach this size.",
+    )
 
     # Embedding-модель для semantic chunking.
     parser.add_argument(
@@ -147,6 +153,8 @@ def main() -> None:
             str(args.output_dir / "semantic_chunks.md"),
             "--max-chars",
             str(args.semantic_max_chars),
+            "--min-chars",
+            str(args.semantic_min_chars),
             "--model",
             args.semantic_model,
             "--break-percentile",

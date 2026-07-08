@@ -155,12 +155,54 @@ def build_semantic_chunks(
     return [chunk for chunk in chunks if chunk]
 
 
+def merge_short_chunks(
+    chunks: list[str],
+    min_chars: int = 300,
+    max_chars: int = 2500,
+) -> list[str]:
+    if min_chars <= 0:
+        raise ValueError("min_chars must be greater than zero.")
+
+    if max_chars < min_chars:
+        raise ValueError("max_chars must be greater than or equal to min_chars.")
+
+    merged_chunks: list[str] = []
+
+    for chunk in chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+
+        if not merged_chunks:
+            merged_chunks.append(chunk)
+            continue
+
+        previous = merged_chunks[-1]
+        joined = f"{previous}\n\n{chunk}"
+
+        if len(previous) < min_chars or len(chunk) < min_chars:
+            if len(joined) <= max_chars:
+                merged_chunks[-1] = joined
+                continue
+
+        merged_chunks.append(chunk)
+
+    if len(merged_chunks) >= 2 and len(merged_chunks[-1]) < min_chars:
+        joined = f"{merged_chunks[-2]}\n\n{merged_chunks[-1]}"
+        if len(joined) <= max_chars:
+            merged_chunks[-2] = joined
+            merged_chunks.pop()
+
+    return merged_chunks
+
+
 def split_semantic(
     text: str,
     max_chars: int,
     embedder: TextEmbedder,
     break_percentile: float,
     force_heading_breaks: bool = True,
+    min_chunk_chars: int = 300,
 ) -> list[str]:
     if max_chars <= 0:
         raise ValueError("max_chars must be greater than zero.")
@@ -171,7 +213,7 @@ def split_semantic(
     units = split_markdown_units(text)
 
     if len(units) <= 1:
-        return units
+        return merge_short_chunks(units, min_chars=min_chunk_chars, max_chars=max_chars)
 
     embeddings = embedder.embed_texts(units)
     distances = [
@@ -180,10 +222,15 @@ def split_semantic(
     ]
     threshold = percentile(distances, break_percentile)
 
-    return build_semantic_chunks(
+    chunks = build_semantic_chunks(
         units=units,
         distances=distances,
         threshold=threshold,
         max_chars=max_chars,
         force_heading_breaks=force_heading_breaks,
+    )
+    return merge_short_chunks(
+        chunks,
+        min_chars=min_chunk_chars,
+        max_chars=max(max_chars, min_chunk_chars),
     )

@@ -42,6 +42,12 @@ def parse_args() -> argparse.Namespace:
         help="Maximum semantic chunk size in characters.",
     )
     parser.add_argument(
+        "--min-chars",
+        type=int,
+        default=300,
+        help="Small semantic chunks are merged until they reach this size.",
+    )
+    parser.add_argument(
         "--model",
         default=DEFAULT_SEMANTIC_CHUNKING_MODEL,
         help="OpenRouter embedding model.",
@@ -79,6 +85,7 @@ def main() -> None:
         max_chars=args.max_chars,
         embedder=embedder,
         break_percentile=args.break_percentile,
+        min_chunk_chars=args.min_chars,
     )
     write_chunks(chunks, args.output, "Semantic")
     print(f"Saved {len(chunks)} semantic chunks to {args.output}")

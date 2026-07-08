@@ -69,6 +69,19 @@ class ChromaStore:
     def get_collection(self, collection_name: str):
         return self.client.get_collection(collection_name)
 
+    def delete_by_doc_id(self, collection_name: str, doc_id: str) -> int:
+        collection = self.get_collection(collection_name)
+        existing = collection.get(
+            where={"doc_id": doc_id},
+            include=["metadatas"],
+        )
+        ids = [str(item_id) for item_id in existing.get("ids", [])]
+
+        if ids:
+            collection.delete(ids=ids)
+
+        return len(ids)
+
     def load_embeddings(
         self,
         collection_name: str,

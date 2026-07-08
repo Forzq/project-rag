@@ -11,9 +11,14 @@ from fastapi import Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from src.rag_local.answer_generation import AnswerStrategy, generate_answer
 from src.rag_local.config import (
+    DEFAULT_ANSWER_RERANK_TOP_N,
+    DEFAULT_ANSWER_RETRIEVAL_TOP_K,
+    DEFAULT_CHAT_MODEL,
     DEFAULT_CHROMA_COLLECTION,
     DEFAULT_CHROMA_DB_PATH,
+    DEFAULT_DIRECT_CONTEXT_TOKEN_LIMIT,
     DEFAULT_RERANKER_MODEL,
     DEFAULT_RETRIEVAL_MODEL,
 )
@@ -24,11 +29,12 @@ from src.rag_local.hybrid_search import (
     format_chunk_result,
     reciprocal_rank_fusion,
 )
+from src.rag_local.llm import OpenRouterChatClient, resolve_chat_model
 from src.rag_local.reranker import CrossEncoderReranker
 from src.rag_local.vector_store import ChromaRetriever
 
 
-INDEX_HTML_PATH = Path("web/index.html")
+INDEX_HTML_PATH = Path("web/index.html") # rrf proportions
 VECTOR_RRF_WEIGHT = 0.75
 BM25_RRF_WEIGHT = 0.25
 
@@ -89,6 +95,30 @@ class RerankResponse(BaseModel):
     results: list[SearchResult]
 
 
+class AnswerRequest(BaseModel):
+    query: str = Field(min_length=1)
+    strategy: AnswerStrategy = "auto"
+    retrieval_top_k: int = Field(default=DEFAULT_ANSWER_RETRIEVAL_TOP_K, ge=1, le=50)
+    rerank_top_n: int = Field(default=DEFAULT_ANSWER_RERANK_TOP_N, ge=1, le=20)
+    year: int | None = None
+    author: str | None = None
+    document_type: str | None = None
+
+
+class AnswerResponse(BaseModel):
+    query: str
+    answer: str
+    strategy: str
+    chat_model: str
+    retrieval_top_k: int
+    rerank_top_n: int
+    estimated_context_tokens: int
+    context_token_limit: int
+    warning: str | None = None
+    map_summaries: list[str] = []
+    sources: list[SearchResult]
+
+
 load_dotenv()
 app = FastAPI(title="Local RAG Retrieval")
 
@@ -115,6 +145,10 @@ def get_reranker() -> CrossEncoderReranker:
             status_code=500,
             detail=f"Failed to load reranker model '{DEFAULT_RERANKER_MODEL}': {error}",
         ) from error
+
+
+def get_chat_client() -> OpenRouterChatClient:
+    return OpenRouterChatClient(resolve_chat_model(DEFAULT_CHAT_MODEL))
 
 
 def embed_query(query: str) -> list[float]:
@@ -317,6 +351,84 @@ def rerank_candidates(request: RerankRequest) -> RerankResponse:
     )
 
 
+def model_to_dict(model: BaseModel) -> dict[str, Any]:
+    return model.model_dump() if hasattr(model, "model_dump") else model.dict()
+
+
+def answer_question(request: AnswerRequest) -> AnswerResponse:
+    query = request.query.strip()
+    search_response = search_top_k(
+        SearchRequest(
+            query=query,
+            top_k=request.retrieval_top_k,
+            search_mode="hybrid",
+            year=request.year,
+            author=request.author,
+            document_type=request.document_type,
+        )
+    )
+    if not search_response.results:
+        return AnswerResponse(
+            query=query,
+            answer="В найденном контексте нет достаточной информации для ответа.",
+            strategy=request.strategy,
+            chat_model=resolve_chat_model(DEFAULT_CHAT_MODEL),
+            retrieval_top_k=request.retrieval_top_k,
+            rerank_top_n=request.rerank_top_n,
+            estimated_context_tokens=0,
+            context_token_limit=DEFAULT_DIRECT_CONTEXT_TOKEN_LIMIT,
+            warning=search_response.warning,
+            map_summaries=[],
+            sources=[],
+        )
+
+    rerank_response = rerank_candidates(
+        RerankRequest(
+            query=query,
+            candidates=search_response.results,
+            top_n=request.rerank_top_n,
+        )
+    )
+    source_chunks = [model_to_dict(result) for result in rerank_response.results]
+
+    try:
+        chat_client = get_chat_client()
+        generated = generate_answer(
+            question=query,
+            chunks=source_chunks,
+            chat_client=chat_client,
+            strategy=request.strategy,
+            context_token_limit=DEFAULT_DIRECT_CONTEXT_TOKEN_LIMIT,
+        )
+    except requests.HTTPError as error:
+        response_text = error.response.text if error.response is not None else str(error)
+        raise HTTPException(
+            status_code=502,
+            detail=f"OpenRouter chat request failed: {response_text}",
+        ) from error
+    except requests.RequestException as error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"OpenRouter chat request failed: {error}",
+        ) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+    return AnswerResponse(
+        query=query,
+        answer=generated.answer,
+        strategy=generated.strategy,
+        chat_model=chat_client.model,
+        retrieval_top_k=request.retrieval_top_k,
+        rerank_top_n=request.rerank_top_n,
+        estimated_context_tokens=generated.estimated_context_tokens,
+        context_token_limit=generated.context_token_limit,
+        warning=search_response.warning,
+        map_summaries=generated.map_summaries,
+        sources=rerank_response.results,
+    )
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     retriever = get_retriever()
@@ -325,6 +437,7 @@ def health() -> dict[str, Any]:
         "collection": DEFAULT_CHROMA_COLLECTION,
         "count": retriever.count(),
         "embedding_model": DEFAULT_RETRIEVAL_MODEL,
+        "chat_model": resolve_chat_model(DEFAULT_CHAT_MODEL),
     }
 
 
@@ -336,6 +449,11 @@ def search(request: SearchRequest) -> SearchResponse:
 @app.post("/api/rerank")
 def rerank(request: RerankRequest) -> RerankResponse:
     return rerank_candidates(request)
+
+
+@app.post("/api/answer")
+def answer(request: AnswerRequest) -> AnswerResponse:
+    return answer_question(request)
 
 
 @app.get("/favicon.ico")

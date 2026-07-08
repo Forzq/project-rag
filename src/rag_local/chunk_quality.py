@@ -64,8 +64,8 @@ def get_low_quality_reason(
         return "heading_only"
 
     if characters < min_characters:
-        chunk_id = int(metadata.get("chunk_id") or 0)
-        index = int(metadata.get("index") or 0)
+        chunk_id = int(metadata.get("chunk_id") or 999999)
+        index = int(metadata.get("index") or 999999)
 
         if chunk_id <= 5 or index <= 4:
             return "short_initial_chunk"

@@ -85,6 +85,12 @@ def parse_args() -> argparse.Namespace:
         help="Maximum semantic chunk size in characters.",
     )
     parser.add_argument(
+        "--semantic-min-chars",
+        type=int,
+        default=300,
+        help="Small semantic chunks are merged until they reach this size.",
+    )
+    parser.add_argument(
         "--break-percentile",
         type=float,
         default=80.0,
@@ -176,6 +182,7 @@ def main() -> None:
         max_chars=args.semantic_max_chars,
         embedder=semantic_embedder,
         break_percentile=args.break_percentile,
+        min_chunk_chars=args.semantic_min_chars,
     )
     write_chunks(chunk_texts, chunks_file, "Semantic")
     print(f"Saved {len(chunk_texts)} chunks to {chunks_file}")
@@ -219,6 +226,10 @@ def main() -> None:
 
     print("Step 4/4: ChromaDB load")
     store = ChromaStore(args.db_path)
+    if not args.reset:
+        deleted_count = store.delete_by_doc_id(args.collection, args.doc_id)
+        print(f"Deleted {deleted_count} old chunks for doc_id={args.doc_id}")
+
     store.load_embeddings(
         collection_name=args.collection,
         chunks=enriched_chunks,
