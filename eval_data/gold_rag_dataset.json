@@ -1,0 +1,334 @@
+{
+  "version": "1.0",
+  "language": "ru",
+  "name": "harry_potter_rag_gold_30",
+  "description": "Gold dataset for evaluating RAG retrieval and answer generation on the first three Harry Potter documents.",
+  "documents": [
+    {
+      "doc_id": "harry_potter_1",
+      "title": "Harry Potter and the Philosopher's Stone",
+      "year": 1997,
+      "document_type": "book"
+    },
+    {
+      "doc_id": "harry_potter_2",
+      "title": "Harry Potter and the Chamber of Secrets",
+      "year": 1998,
+      "document_type": "book"
+    },
+    {
+      "doc_id": "harry_potter_3",
+      "title": "Harry Potter and the Prisoner of Azkaban",
+      "year": 1999,
+      "document_type": "book"
+    }
+  ],
+  "evaluation_notes": {
+    "retrieval_success": "A retrieval run should place at least one chunk from expected_doc_ids in top_k. Stronger tests can also check expected_terms in retrieved text.",
+    "answer_success": "The generated answer should be factually equivalent to reference_answer and include the main concepts from must_contain_any.",
+    "must_contain_any": "Each inner list contains acceptable alternatives. A good answer should match at least one term from each inner list.",
+    "copyright_note": "Reference answers are short paraphrases, not long source excerpts."
+  },
+  "items": [
+    {
+      "id": "gold_001",
+      "question": "Кто такие Дурсли и как они связаны с Гарри Поттером?",
+      "reference_answer": "Дурсли - семья маглов, у которой Гарри жил после смерти родителей: его тетя Петунья, дядя Вернон и кузен Дадли.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "relationship",
+      "difficulty": "easy",
+      "must_contain_any": [["Дурсли"], ["тетя", "Петунья"], ["дядя", "Вернон"], ["Дадли"], ["маглы", "обычные люди", "не волшебники"]]
+    },
+    {
+      "id": "gold_002",
+      "question": "Где Гарри жил до поступления в Хогвартс?",
+      "reference_answer": "До Хогвартса Гарри жил у Дурслей в доме номер четыре на Тисовой улице, фактически в чулане под лестницей.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "factoid",
+      "difficulty": "easy",
+      "must_contain_any": [["Дурсли"], ["Тисовая улица", "Privet Drive"], ["номер четыре", "дом номер четыре"], ["чулан", "лестницей"]]
+    },
+    {
+      "id": "gold_003",
+      "question": "Кто рассказал Гарри, что он волшебник?",
+      "reference_answer": "Гарри узнает, что он волшебник, от Рубеуса Хагрида, когда тот приезжает к нему и Дурслям.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "factoid",
+      "difficulty": "easy",
+      "must_contain_any": [["Хагрид", "Рубеус"], ["волшебник"]]
+    },
+    {
+      "id": "gold_004",
+      "question": "Кто такой Хагрид в первой книге?",
+      "reference_answer": "Хагрид - сотрудник Хогвартса, хранитель ключей и лесничий, который помогает Гарри войти в волшебный мир.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "entity",
+      "difficulty": "easy",
+      "must_contain_any": [["Хагрид"], ["Хогвартс"], ["хранитель ключей", "лесничий", "сотрудник"]]
+    },
+    {
+      "id": "gold_005",
+      "question": "На какой факультет распределили Гарри в Хогвартсе?",
+      "reference_answer": "Распределяющая шляпа отправила Гарри Поттера на факультет Гриффиндор.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "factoid",
+      "difficulty": "easy",
+      "must_contain_any": [["Гриффиндор"], ["Распределяющая шляпа", "шляпа"]]
+    },
+    {
+      "id": "gold_006",
+      "question": "Что искали Гарри, Рон и Гермиона в первой книге?",
+      "reference_answer": "В первой книге они пытаются разобраться с тайной философского камня и помешать его похищению.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "plot",
+      "difficulty": "medium",
+      "must_contain_any": [["философский камень"], ["Гарри"], ["Рон"], ["Гермиона"]]
+    },
+    {
+      "id": "gold_007",
+      "question": "Кто такой Николас Фламель и почему он важен для сюжета?",
+      "reference_answer": "Николас Фламель связан с философским камнем: именно его камень становится центральной тайной, которую пытаются защитить герои.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "entity",
+      "difficulty": "medium",
+      "must_contain_any": [["Николас Фламель", "Фламель"], ["философский камень"]]
+    },
+    {
+      "id": "gold_008",
+      "question": "Что показывало зеркало Еиналеж Гарри?",
+      "reference_answer": "Зеркало Еиналеж показывало Гарри его самое сильное желание: он видел себя рядом со своими родителями.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "factoid",
+      "difficulty": "medium",
+      "must_contain_any": [["зеркало", "Еиналеж"], ["родители", "мать", "отец"], ["желание"]]
+    },
+    {
+      "id": "gold_009",
+      "question": "Кто пытался завладеть философским камнем?",
+      "reference_answer": "Философским камнем пытался завладеть профессор Квиррелл, действовавший под влиянием Волан-де-Морта.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "factoid",
+      "difficulty": "medium",
+      "must_contain_any": [["Квиррелл"], ["Волан-де-Морт", "Волдеморт", "Темный Лорд"], ["философский камень"]]
+    },
+    {
+      "id": "gold_010",
+      "question": "Почему Гарри смог получить философский камень из зеркала?",
+      "reference_answer": "Гарри смог получить камень, потому что хотел найти его, но не хотел использовать для себя.",
+      "expected_doc_ids": ["harry_potter_1"],
+      "expected_years": [1997],
+      "question_type": "reasoning",
+      "difficulty": "hard",
+      "must_contain_any": [["не хотел использовать", "не собирался использовать", "не хотел воспользоваться"], ["камень"], ["зеркало"]]
+    },
+    {
+      "id": "gold_011",
+      "question": "Кто такой Добби и о чем он предупреждал Гарри?",
+      "reference_answer": "Добби - домашний эльф, который предупреждал Гарри, что тому нельзя возвращаться в Хогвартс, потому что там его ждет опасность.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "entity",
+      "difficulty": "easy",
+      "must_contain_any": [["Добби"], ["домашний эльф", "эльф"], ["не возвращаться", "нельзя возвращаться"], ["Хогвартс"], ["опасность"]]
+    },
+    {
+      "id": "gold_012",
+      "question": "Как Рон и его братья помогли Гарри выбраться от Дурслей во второй книге?",
+      "reference_answer": "Рон, Фред и Джордж прилетели к дому Дурслей на летающем автомобиле и помогли Гарри сбежать.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "event",
+      "difficulty": "easy",
+      "must_contain_any": [["Рон"], ["Фред"], ["Джордж"], ["летающий автомобиль", "машина", "Форд"], ["Дурсли"]]
+    },
+    {
+      "id": "gold_013",
+      "question": "Что такое Тайная комната в Хогвартсе?",
+      "reference_answer": "Тайная комната - скрытое помещение в Хогвартсе, связанное с Салазаром Слизерином; внутри находится чудовище, нападающее на учеников.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "entity",
+      "difficulty": "medium",
+      "must_contain_any": [["Тайная комната"], ["Хогвартс"], ["Салазар Слизерин", "Слизерин"], ["чудовище", "монстр"]]
+    },
+    {
+      "id": "gold_014",
+      "question": "Какое существо скрывалось в Тайной комнате?",
+      "reference_answer": "В Тайной комнате скрывался василиск, огромная змея, чей взгляд был смертельно опасен.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "factoid",
+      "difficulty": "easy",
+      "must_contain_any": [["василиск"], ["змея"], ["взгляд", "смотреть"]]
+    },
+    {
+      "id": "gold_015",
+      "question": "Почему некоторые ученики были оцепеневшими, а не убитыми василиском?",
+      "reference_answer": "Они видели василиска не напрямую, а через отражение или посредник, поэтому были оцепеневшими, а не погибали.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "reasoning",
+      "difficulty": "hard",
+      "must_contain_any": [["василиск"], ["не напрямую", "отражение", "через"], ["оцепенели", "окаменели", "оцепеневшие"]]
+    },
+    {
+      "id": "gold_016",
+      "question": "Кто управлял Джинни через дневник во второй книге?",
+      "reference_answer": "Джинни управляла память Тома Реддла, сохранившаяся в волшебном дневнике.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "factoid",
+      "difficulty": "medium",
+      "must_contain_any": [["Джинни"], ["Том Реддл", "Реддл"], ["дневник"]]
+    },
+    {
+      "id": "gold_017",
+      "question": "Как Гарри уничтожил дневник Тома Реддла?",
+      "reference_answer": "Гарри уничтожил дневник, проткнув его клыком василиска.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "factoid",
+      "difficulty": "easy",
+      "must_contain_any": [["дневник"], ["клык", "зуб"], ["василиск"]]
+    },
+    {
+      "id": "gold_018",
+      "question": "Кто такой Златопуст Локонс и чем он оказался на самом деле?",
+      "reference_answer": "Златопуст Локонс был преподавателем защиты от темных искусств, но оказался хвастливым мошенником, присваивавшим чужие подвиги.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "entity",
+      "difficulty": "medium",
+      "must_contain_any": [["Локонс", "Златопуст"], ["защиты от темных искусств", "преподаватель"], ["мошенник", "обманщик", "присваивал"]]
+    },
+    {
+      "id": "gold_019",
+      "question": "Как Гарри победил василиска?",
+      "reference_answer": "Гарри победил василиска с помощью меча Гриффиндора, а феникс Фоукс помог ему в битве.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "event",
+      "difficulty": "medium",
+      "must_contain_any": [["меч Гриффиндора", "меч"], ["Фоукс", "феникс"], ["василиск"]]
+    },
+    {
+      "id": "gold_020",
+      "question": "Как Добби получил свободу?",
+      "reference_answer": "Гарри обманом заставил Люциуса Малфоя передать Добби носок, а одежда освободила домашнего эльфа.",
+      "expected_doc_ids": ["harry_potter_2"],
+      "expected_years": [1998],
+      "question_type": "event",
+      "difficulty": "medium",
+      "must_contain_any": [["Добби"], ["носок"], ["Люциус Малфой", "Малфой"], ["свобода", "освободил"]]
+    },
+    {
+      "id": "gold_021",
+      "question": "Кем считали Сириуса Блэка в начале третьей книги?",
+      "reference_answer": "В начале третьей книги Сириуса Блэка считали опасным беглецом из Азкабана, убийцей и сторонником Волан-де-Морта.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "entity",
+      "difficulty": "easy",
+      "must_contain_any": [["Сириус Блэк"], ["Азкабан"], ["беглец", "сбежал"], ["убийца", "опасный"], ["Волан-де-Морт", "Темный Лорд"]]
+    },
+    {
+      "id": "gold_022",
+      "question": "Что такое Азкабан?",
+      "reference_answer": "Азкабан - мрачная тюрьма волшебного мира, где держат опасных заключенных и которую охраняют дементоры.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "entity",
+      "difficulty": "easy",
+      "must_contain_any": [["Азкабан"], ["тюрьма"], ["дементоры", "дементор"]]
+    },
+    {
+      "id": "gold_023",
+      "question": "Кто такие дементоры и как они влияли на Гарри?",
+      "reference_answer": "Дементоры - стражи Азкабана, которые высасывают радость и вызывают ужасные воспоминания; на Гарри они действовали особенно сильно.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "entity",
+      "difficulty": "medium",
+      "must_contain_any": [["дементоры"], ["Азкабан"], ["радость", "счастье"], ["воспоминания", "страх", "ужас"]]
+    },
+    {
+      "id": "gold_024",
+      "question": "Какое заклинание Гарри учился использовать против дементоров?",
+      "reference_answer": "Гарри учился использовать заклинание Патронуса, произнося 'Экспекто патронум'.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "factoid",
+      "difficulty": "easy",
+      "must_contain_any": [["Патронус", "патронум"], ["дементоры"]]
+    },
+    {
+      "id": "gold_025",
+      "question": "Кто учил Гарри защищаться от дементоров?",
+      "reference_answer": "Гарри учил профессор Римус Люпин, преподаватель защиты от темных искусств.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "factoid",
+      "difficulty": "easy",
+      "must_contain_any": [["Люпин", "Римус"], ["защищаться", "Патронус", "дементоры"], ["преподаватель", "профессор"]]
+    },
+    {
+      "id": "gold_026",
+      "question": "Кто такой Римус Люпин?",
+      "reference_answer": "Римус Люпин - новый преподаватель защиты от темных искусств, друг отца Гарри и оборотень.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "entity",
+      "difficulty": "medium",
+      "must_contain_any": [["Люпин", "Римус"], ["защиты от темных искусств", "преподаватель"], ["оборотень"], ["отец Гарри", "Джеймс"]]
+    },
+    {
+      "id": "gold_027",
+      "question": "Кто на самом деле предал родителей Гарри?",
+      "reference_answer": "Родителей Гарри предал не Сириус Блэк, а Питер Петтигрю.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "factoid",
+      "difficulty": "medium",
+      "must_contain_any": [["Питер Петтигрю", "Петтигрю"], ["предал"], ["не Сириус", "Сириус"]]
+    },
+    {
+      "id": "gold_028",
+      "question": "Кем на самом деле была крыса Рона Короста?",
+      "reference_answer": "Крыса Рона Короста на самом деле была Питером Петтигрю, анимагом, скрывавшимся в облике крысы.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "factoid",
+      "difficulty": "medium",
+      "must_contain_any": [["Короста", "крыса"], ["Питер Петтигрю", "Петтигрю"], ["анимаг"]]
+    },
+    {
+      "id": "gold_029",
+      "question": "Как Гарри и Гермиона спасли Клювокрыла и Сириуса?",
+      "reference_answer": "Гарри и Гермиона использовали маховик времени, вернулись назад и помогли спасти Клювокрыла, а затем Сириуса.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "event",
+      "difficulty": "hard",
+      "must_contain_any": [["Гарри"], ["Гермиона"], ["маховик времени", "время"], ["Клювокрыл"], ["Сириус"]]
+    },
+    {
+      "id": "gold_030",
+      "question": "Кто создал Карту Мародеров?",
+      "reference_answer": "Карту Мародеров создали Лунатик, Хвост, Бродяга и Сохатый: Римус Люпин, Питер Петтигрю, Сириус Блэк и Джеймс Поттер.",
+      "expected_doc_ids": ["harry_potter_3"],
+      "expected_years": [1999],
+      "question_type": "multi_entity",
+      "difficulty": "hard",
+      "must_contain_any": [["Карта Мародеров"], ["Лунатик", "Люпин"], ["Хвост", "Петтигрю"], ["Бродяга", "Сириус"], ["Сохатый", "Джеймс"]]
+    }
+  ]
+}

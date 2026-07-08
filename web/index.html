@@ -228,6 +228,50 @@
       margin-top: 10px;
     }
 
+    .chat-history {
+      margin-bottom: 14px;
+    }
+
+    .chat-message {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .chat-message.user {
+      border-left: 4px solid var(--accent);
+    }
+
+    .chat-message.assistant {
+      border-left: 4px solid var(--ok);
+    }
+
+    .message-role {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .message-content {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+    }
+
+    .secondary-button {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .secondary-button:hover {
+      background: #eef2f7;
+    }
+
     .error {
       background: #fff1f2;
       border: 1px solid #fecdd3;
@@ -322,10 +366,12 @@
             </select>
           </div>
           <button id="askButton">Ask</button>
+          <button class="secondary-button" id="clearChatButton" type="button">Clear memory</button>
         </div>
         <div id="chatError"></div>
       </section>
 
+      <section class="chat-history" id="chatMessages"></section>
       <section id="answerResults"></section>
     </section>
   </main>
@@ -348,10 +394,13 @@
     const documentTypeNode = document.getElementById("documentType");
     const chatErrorNode = document.getElementById("chatError");
     const answerResultsNode = document.getElementById("answerResults");
+    const chatMessagesNode = document.getElementById("chatMessages");
     const askButton = document.getElementById("askButton");
+    const clearChatButton = document.getElementById("clearChatButton");
     const chatQueryNode = document.getElementById("chatQuery");
     const contextStrategyNode = document.getElementById("contextStrategy");
     let lastSearchData = null;
+    let chatHistory = [];
 
     function escapeHtml(value) {
       return value
@@ -463,6 +512,7 @@
         <article class="answer">
           <div class="summary">
             Query: <strong>${escapeHtml(data.query)}</strong><br>
+            ${data.standalone_query && data.standalone_query !== data.query ? `Standalone query: <strong>${escapeHtml(data.standalone_query)}</strong><br>` : ""}
             Model: ${escapeHtml(data.chat_model)} | Strategy: ${escapeHtml(data.strategy)} | Context tokens: ${data.estimated_context_tokens}/${data.context_token_limit}<br>
             Retrieval top-k: ${data.retrieval_top_k} | Rerank top-n: ${data.rerank_top_n}
             ${data.warning ? `<br><strong>${escapeHtml(data.warning)}</strong>` : ""}
@@ -473,6 +523,30 @@
         <div class="summary">Sources</div>
         ${sources}
       `;
+    }
+
+    function renderChatHistory() {
+      if (!chatHistory.length) {
+        chatMessagesNode.innerHTML = "";
+        return;
+      }
+
+      chatMessagesNode.innerHTML = chatHistory.map((message) => {
+        const label = message.role === "user" ? "You" : "Assistant";
+        return `
+          <article class="chat-message ${message.role}">
+            <div class="message-role">${label}</div>
+            <div class="message-content">${escapeHtml(message.content)}</div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function clearChatMemory() {
+      chatHistory = [];
+      chatMessagesNode.innerHTML = "";
+      answerResultsNode.innerHTML = "";
+      chatErrorNode.innerHTML = "";
     }
 
     async function runSearch() {
@@ -557,6 +631,7 @@
     async function runAnswer() {
       const query = chatQueryNode.value.trim();
       const strategy = contextStrategyNode.value;
+      const historyForRequest = chatHistory.slice();
 
       chatErrorNode.innerHTML = "";
       answerResultsNode.innerHTML = "";
@@ -578,10 +653,15 @@
             strategy,
             retrieval_top_k: 20,
             rerank_top_n: 5,
+            chat_history: historyForRequest,
           }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || "Answer generation failed");
+        chatHistory.push({ role: "user", content: query });
+        chatHistory.push({ role: "assistant", content: data.answer });
+        renderChatHistory();
+        chatQueryNode.value = "";
         renderAnswer(data);
       } catch (error) {
         chatErrorNode.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
@@ -596,6 +676,7 @@
     button.addEventListener("click", runSearch);
     rerankButton.addEventListener("click", runRerank);
     askButton.addEventListener("click", runAnswer);
+    clearChatButton.addEventListener("click", clearChatMemory);
     queryNode.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
         runSearch();

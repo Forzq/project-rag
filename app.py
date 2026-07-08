@@ -11,7 +11,12 @@ from fastapi import Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from src.rag_local.answer_generation import AnswerStrategy, generate_answer
+from src.rag_local.answer_generation import (
+    AnswerStrategy,
+    ChatHistoryMessage,
+    generate_answer,
+    rewrite_question,
+)
 from src.rag_local.config import (
     DEFAULT_ANSWER_RERANK_TOP_N,
     DEFAULT_ANSWER_RETRIEVAL_TOP_K,
@@ -95,6 +100,11 @@ class RerankResponse(BaseModel):
     results: list[SearchResult]
 
 
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1)
+
+
 class AnswerRequest(BaseModel):
     query: str = Field(min_length=1)
     strategy: AnswerStrategy = "auto"
@@ -103,10 +113,12 @@ class AnswerRequest(BaseModel):
     year: int | None = None
     author: str | None = None
     document_type: str | None = None
+    chat_history: list[ChatMessage] = Field(default_factory=list)
 
 
 class AnswerResponse(BaseModel):
     query: str
+    standalone_query: str
     answer: str
     strategy: str
     chat_model: str
@@ -115,7 +127,7 @@ class AnswerResponse(BaseModel):
     estimated_context_tokens: int
     context_token_limit: int
     warning: str | None = None
-    map_summaries: list[str] = []
+    map_summaries: list[str] = Field(default_factory=list)
     sources: list[SearchResult]
 
 
@@ -355,11 +367,44 @@ def model_to_dict(model: BaseModel) -> dict[str, Any]:
     return model.model_dump() if hasattr(model, "model_dump") else model.dict()
 
 
+def chat_history_to_dicts(chat_history: list[ChatMessage]) -> list[ChatHistoryMessage]:
+    return [
+        {
+            "role": message.role,
+            "content": message.content,
+        }
+        for message in chat_history
+    ]
+
+
 def answer_question(request: AnswerRequest) -> AnswerResponse:
     query = request.query.strip()
+    chat_history = chat_history_to_dicts(request.chat_history)
+
+    try:
+        chat_client = get_chat_client()
+        standalone_query = rewrite_question(
+            question=query,
+            chat_history=chat_history,
+            chat_client=chat_client,
+        )
+    except requests.HTTPError as error:
+        response_text = error.response.text if error.response is not None else str(error)
+        raise HTTPException(
+            status_code=502,
+            detail=f"OpenRouter chat request failed: {response_text}",
+        ) from error
+    except requests.RequestException as error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"OpenRouter chat request failed: {error}",
+        ) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
     search_response = search_top_k(
         SearchRequest(
-            query=query,
+            query=standalone_query,
             top_k=request.retrieval_top_k,
             search_mode="hybrid",
             year=request.year,
@@ -370,9 +415,10 @@ def answer_question(request: AnswerRequest) -> AnswerResponse:
     if not search_response.results:
         return AnswerResponse(
             query=query,
+            standalone_query=standalone_query,
             answer="В найденном контексте нет достаточной информации для ответа.",
             strategy=request.strategy,
-            chat_model=resolve_chat_model(DEFAULT_CHAT_MODEL),
+            chat_model=chat_client.model,
             retrieval_top_k=request.retrieval_top_k,
             rerank_top_n=request.rerank_top_n,
             estimated_context_tokens=0,
@@ -384,7 +430,7 @@ def answer_question(request: AnswerRequest) -> AnswerResponse:
 
     rerank_response = rerank_candidates(
         RerankRequest(
-            query=query,
+            query=standalone_query,
             candidates=search_response.results,
             top_n=request.rerank_top_n,
         )
@@ -392,13 +438,13 @@ def answer_question(request: AnswerRequest) -> AnswerResponse:
     source_chunks = [model_to_dict(result) for result in rerank_response.results]
 
     try:
-        chat_client = get_chat_client()
         generated = generate_answer(
             question=query,
             chunks=source_chunks,
             chat_client=chat_client,
             strategy=request.strategy,
             context_token_limit=DEFAULT_DIRECT_CONTEXT_TOKEN_LIMIT,
+            chat_history=chat_history,
         )
     except requests.HTTPError as error:
         response_text = error.response.text if error.response is not None else str(error)
@@ -416,6 +462,7 @@ def answer_question(request: AnswerRequest) -> AnswerResponse:
 
     return AnswerResponse(
         query=query,
+        standalone_query=standalone_query,
         answer=generated.answer,
         strategy=generated.strategy,
         chat_model=chat_client.model,
