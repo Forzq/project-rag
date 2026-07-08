@@ -24,6 +24,9 @@ INDEX_HTML_PATH = Path("web/index.html")
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
     top_k: int = Field(default=20, ge=1, le=50)
+    year: int | None = None
+    author: str | None = None
+    document_type: str | None = None
 
 
 class SearchResult(BaseModel):
@@ -34,6 +37,11 @@ class SearchResult(BaseModel):
     distance: float | None
     characters: int | None
     source_file: str | None
+    doc_id: str | None = None
+    title: str | None = None
+    author: str | None = None
+    year: int | None = None
+    document_type: str | None = None
     text: str
 
 
@@ -42,6 +50,7 @@ class SearchResponse(BaseModel):
     top_k: int
     collection: str
     embedding_model: str
+    filters: dict[str, Any]
     results: list[SearchResult]
 
 
@@ -76,16 +85,44 @@ def embed_query(query: str) -> list[float]:
         ) from error
 
 
-def search_top_k(query: str, top_k: int) -> SearchResponse:
+def build_where_filter(request: SearchRequest) -> dict[str, Any] | None:
+    filters: list[dict[str, Any]] = []
+
+    if request.year is not None:
+        filters.append({"year": request.year})
+
+    if request.author:
+        filters.append({"author": request.author.strip()})
+
+    if request.document_type:
+        filters.append({"document_type": request.document_type.strip()})
+
+    if not filters:
+        return None
+
+    if len(filters) == 1:
+        return filters[0]
+
+    return {"$and": filters}
+
+
+def search_top_k(request: SearchRequest) -> SearchResponse:
+    query = request.query.strip()
     query_embedding = embed_query(query)
     retriever = get_retriever()
-    raw_results = retriever.search(query_embedding=query_embedding, top_k=top_k)
+    where_filter = build_where_filter(request)
+    raw_results = retriever.search(
+        query_embedding=query_embedding,
+        top_k=request.top_k,
+        where=where_filter,
+    )
 
     return SearchResponse(
         query=query,
-        top_k=top_k,
+        top_k=request.top_k,
         collection=DEFAULT_CHROMA_COLLECTION,
         embedding_model=DEFAULT_RETRIEVAL_MODEL,
+        filters=where_filter or {},
         results=[SearchResult(**result) for result in raw_results],
     )
 
@@ -103,10 +140,9 @@ def health() -> dict[str, Any]:
 
 @app.post("/api/search")
 def search(request: SearchRequest) -> SearchResponse:
-    return search_top_k(request.query.strip(), request.top_k)
+    return search_top_k(request)
 
 
 @app.get("/", response_class=HTMLResponse)
 def index() -> str:
     return INDEX_HTML_PATH.read_text(encoding="utf-8")
-

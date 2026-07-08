@@ -79,6 +79,11 @@ def parse_args() -> argparse.Namespace:
         default=64,
         help="Number of text units sent per semantic embeddings request.",
     )
+    parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Keep extracted Markdown exactly as-is before chunking.",
+    )
 
     return parser.parse_args()
 
@@ -101,6 +106,7 @@ def main() -> None:
 
     # Создаем папку для результатов.
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    clean_args = ["--no-clean"] if args.no_clean else []
 
     # Запускаем fixed-size chunking.
     run_script(
@@ -113,6 +119,7 @@ def main() -> None:
             str(args.chunk_size),
             "--overlap",
             str(args.overlap),
+            *clean_args,
         ],
     )
 
@@ -127,6 +134,7 @@ def main() -> None:
             str(args.chunk_size),
             "--overlap",
             str(args.overlap),
+            *clean_args,
         ],
     )
 
@@ -145,6 +153,7 @@ def main() -> None:
             str(args.break_percentile),
             "--batch-size",
             str(args.semantic_batch_size),
+            *clean_args,
         ],
     )
 

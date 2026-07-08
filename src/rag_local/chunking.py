@@ -9,6 +9,15 @@ class TextEmbedder(Protocol):
         ...
 
 
+def is_markdown_heading(line: str) -> bool:
+    return line.lstrip().startswith("#")
+
+
+def is_heading_only_unit(unit: str) -> bool:
+    lines = [line.strip() for line in unit.splitlines() if line.strip()]
+    return bool(lines) and all(is_markdown_heading(line) for line in lines)
+
+
 def split_fixed_size(text: str, chunk_size: int, overlap: int) -> list[str]:
     if chunk_size <= 0:
         raise ValueError("chunk_size must be greater than zero.")
@@ -53,10 +62,15 @@ def split_markdown_units(text: str) -> list[str]:
         if stripped.startswith("```"):
             in_code_block = not in_code_block
 
-        starts_new_unit = (
-            not in_code_block
-            and current
-            and (stripped.startswith("#") or stripped.startswith("<!-- Page "))
+        previous_non_empty = next(
+            (previous.strip() for previous in reversed(current) if previous.strip()),
+            "",
+        )
+        starts_new_heading = is_markdown_heading(stripped) and not is_markdown_heading(
+            previous_non_empty
+        )
+        starts_new_unit = not in_code_block and current and (
+            starts_new_heading or stripped.startswith("<!-- Page ")
         )
 
         if starts_new_unit:
@@ -102,6 +116,7 @@ def build_semantic_chunks(
     distances: list[float],
     threshold: float,
     max_chars: int,
+    force_heading_breaks: bool = True,
 ) -> list[str]:
     chunks: list[str] = []
     current: list[str] = []
@@ -111,8 +126,22 @@ def build_semantic_chunks(
         extra_length = len(unit) + (2 if current else 0)
         should_break_by_size = current and current_length + extra_length > max_chars
         should_break_by_meaning = index > 0 and distances[index - 1] >= threshold
+        should_break_by_heading = (
+            force_heading_breaks and current and unit.lstrip().startswith("#")
+        )
+        should_keep_heading_with_text = (
+            current
+            and len(current) == 1
+            and is_heading_only_unit(current[0])
+            and not unit.lstrip().startswith("#")
+        )
 
-        if current and (should_break_by_size or should_break_by_meaning):
+        if should_keep_heading_with_text:
+            should_break_by_meaning = False
+
+        if current and (
+            should_break_by_size or should_break_by_meaning or should_break_by_heading
+        ):
             chunks.append("\n\n".join(current))
             current = [unit]
             current_length = len(unit)
@@ -131,6 +160,7 @@ def split_semantic(
     max_chars: int,
     embedder: TextEmbedder,
     break_percentile: float,
+    force_heading_breaks: bool = True,
 ) -> list[str]:
     if max_chars <= 0:
         raise ValueError("max_chars must be greater than zero.")
@@ -150,5 +180,10 @@ def split_semantic(
     ]
     threshold = percentile(distances, break_percentile)
 
-    return build_semantic_chunks(units, distances, threshold, max_chars)
-
+    return build_semantic_chunks(
+        units=units,
+        distances=distances,
+        threshold=threshold,
+        max_chars=max_chars,
+        force_heading_breaks=force_heading_breaks,
+    )

@@ -14,6 +14,7 @@ from src.rag_local.chunk_io import write_chunks
 from src.rag_local.chunking import split_semantic
 from src.rag_local.config import DEFAULT_SEMANTIC_CHUNKING_MODEL
 from src.rag_local.embeddings import OpenRouterEmbedder
+from src.rag_local.preprocessing import clean_extracted_markdown
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,6 +58,11 @@ def parse_args() -> argparse.Namespace:
         default=64,
         help="Number of text units sent per embeddings request.",
     )
+    parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Keep extracted Markdown exactly as-is before chunking.",
+    )
     return parser.parse_args()
 
 
@@ -64,6 +70,9 @@ def main() -> None:
     load_dotenv()
     args = parse_args()
     text = args.input.read_text(encoding="utf-8")
+    if not args.no_clean:
+        text = clean_extracted_markdown(text)
+
     embedder = OpenRouterEmbedder(model=args.model, batch_size=args.batch_size)
     chunks = split_semantic(
         text=text,

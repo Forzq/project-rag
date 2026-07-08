@@ -52,13 +52,33 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Delete the collection before loading data.",
     )
+    parser.add_argument("--doc-id", help="Document id stored in chunk metadata.")
+    parser.add_argument("--title", help="Document title stored in chunk metadata.")
+    parser.add_argument("--author", help="Document author stored in chunk metadata.")
+    parser.add_argument("--year", type=int, help="Publication year stored in chunk metadata.")
+    parser.add_argument(
+        "--document-type",
+        help="Document type stored in chunk metadata, for example: book.",
+    )
     return parser.parse_args()
+
+
+def build_document_metadata(args: argparse.Namespace) -> dict[str, object]:
+    metadata: dict[str, object] = {}
+
+    for field in ("doc_id", "title", "author", "year", "document_type"):
+        value = getattr(args, field)
+        if value is not None:
+            metadata[field] = value
+
+    return metadata
 
 
 def main() -> None:
     args = parse_args()
     embeddings = np.load(args.embeddings)
     chunks = load_chunks_metadata(args.metadata)
+    document_metadata = build_document_metadata(args)
     store = ChromaStore(args.db_path)
     store.load_embeddings(
         collection_name=args.collection,
@@ -66,10 +86,13 @@ def main() -> None:
         embeddings=embeddings,
         batch_size=args.batch_size,
         reset=args.reset,
+        document_metadata=document_metadata,
     )
     print(f"Loaded {len(chunks)} records into Chroma collection '{args.collection}'.")
     print(f"Chroma DB path: {args.db_path}")
     print(f"Vector dimension: {embeddings.shape[1]}")
+    if document_metadata:
+        print(f"Document metadata: {document_metadata}")
 
 
 if __name__ == "__main__":

@@ -21,6 +21,7 @@ def load_chunks_metadata(metadata_path: Path) -> list[dict[str, Any]]:
 def build_chroma_payloads(
     chunks: list[dict[str, Any]],
     embeddings: np.ndarray,
+    document_metadata: dict[str, Any] | None = None,
 ) -> tuple[list[str], list[str], list[dict[str, Any]], list[list[float]]]:
     if len(chunks) != len(embeddings):
         raise ValueError(
@@ -31,19 +32,20 @@ def build_chroma_payloads(
     ids: list[str] = []
     documents: list[str] = []
     metadatas: list[dict[str, Any]] = []
+    document_metadata = document_metadata or {}
 
     for chunk in chunks:
         chunk_id = int(chunk["chunk_id"])
-        ids.append(f"chunk-{chunk_id}")
+        doc_id = document_metadata.get("doc_id")
+        ids.append(f"{doc_id}-chunk-{chunk_id}" if doc_id else f"chunk-{chunk_id}")
         documents.append(str(chunk["text"]))
-        metadatas.append(
-            {
-                "chunk_id": chunk_id,
-                "index": int(chunk["index"]),
-                "characters": int(chunk["characters"]),
-                "source_file": str(chunk["source_file"]),
-            }
-        )
+        metadatas.append({
+            **document_metadata,
+            "chunk_id": chunk_id,
+            "index": int(chunk["index"]),
+            "characters": int(chunk["characters"]),
+            "source_file": str(chunk["source_file"]),
+        })
 
     return ids, documents, metadatas, embeddings.astype(float).tolist()
 
@@ -74,16 +76,21 @@ class ChromaStore:
         embeddings: np.ndarray,
         batch_size: int,
         reset: bool,
+        document_metadata: dict[str, Any] | None = None,
     ) -> None:
         if batch_size <= 0:
             raise ValueError("batch_size must be greater than zero.")
 
-        ids, documents, metadatas, vectors = build_chroma_payloads(chunks, embeddings)
+        ids, documents, metadatas, vectors = build_chroma_payloads(
+            chunks=chunks,
+            embeddings=embeddings,
+            document_metadata=document_metadata,
+        )
         collection = self.get_or_create_collection(collection_name, reset=reset)
 
         for start in range(0, len(ids), batch_size):
             end = start + batch_size
-            collection.add(
+            collection.upsert(
                 ids=ids[start:end],
                 documents=documents[start:end],
                 metadatas=metadatas[start:end],
@@ -99,10 +106,16 @@ class ChromaRetriever:
     def count(self) -> int:
         return self.collection.count()
 
-    def search(self, query_embedding: list[float], top_k: int) -> list[dict[str, Any]]:
+    def search(
+        self,
+        query_embedding: list[float],
+        top_k: int,
+        where: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         raw_results = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
+            where=where,
             include=["documents", "metadatas", "distances"],
         )
 
@@ -126,9 +139,13 @@ class ChromaRetriever:
                     "distance": distance,
                     "characters": metadata.get("characters"),
                     "source_file": metadata.get("source_file"),
+                    "doc_id": metadata.get("doc_id"),
+                    "title": metadata.get("title"),
+                    "author": metadata.get("author"),
+                    "year": metadata.get("year"),
+                    "document_type": metadata.get("document_type"),
                     "text": documents[index],
                 }
             )
 
         return results
-

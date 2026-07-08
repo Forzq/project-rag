@@ -10,6 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.rag_local.chunk_io import write_chunks
 from src.rag_local.chunking import split_fixed_size
+from src.rag_local.preprocessing import clean_extracted_markdown
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,12 +41,20 @@ def parse_args() -> argparse.Namespace:
         default=120,
         help="Number of characters repeated between neighboring chunks.",
     )
+    parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Keep extracted Markdown exactly as-is before chunking.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     text = args.input.read_text(encoding="utf-8")
+    if not args.no_clean:
+        text = clean_extracted_markdown(text)
+
     chunks = split_fixed_size(text, args.chunk_size, args.overlap)
     write_chunks(chunks, args.output, "Fixed Size")
     print(f"Saved {len(chunks)} fixed-size chunks to {args.output}")

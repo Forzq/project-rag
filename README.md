@@ -121,6 +121,12 @@ python scripts\load_chroma.py --collection harry_potter_openai_1536 --embeddings
 
 The local Chroma database is stored in `chroma_db/`.
 
+Load the current book with document metadata:
+
+```powershell
+python scripts\load_chroma.py --collection harry_potter_openai_1536 --embeddings embeddings_output\harry_potter_1_semantic\openai_text_embedding_3_small.npy --metadata embeddings_output\harry_potter_1_semantic\chunks_metadata.json --doc-id harry_potter_1 --title "Harry Potter and the Philosopher's Stone" --author "J. K. Rowling" --year 1997 --document-type book --reset
+```
+
 ## Basic Retrieval UI
 
 Run the local FastAPI app:
@@ -138,3 +144,17 @@ http://127.0.0.1:8000
 The app embeds your query with `openai/text-embedding-3-small`, searches the
 `harry_potter_openai_1536` Chroma collection with cosine similarity, and shows
 the top-k chunks for visual relevance review.
+
+## One-command Document Ingestion
+
+Run the full pipeline for a new Markdown document:
+
+```powershell
+python scripts\ingest_document.py md_output\Harry_Potter_2.md --doc-id harry_potter_2 --title "Harry Potter and the Chamber of Secrets" --author "J. K. Rowling" --year 1998 --document-type book
+```
+
+This command creates semantic chunks, generates `openai/text-embedding-3-small`
+embeddings, stores metadata, and adds the document to the
+`harry_potter_openai_1536` Chroma collection.
+
+Use `--reset` only when you intentionally want to recreate the whole collection.
