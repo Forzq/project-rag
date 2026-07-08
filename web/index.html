@@ -215,7 +215,7 @@
     <header>
       <div>
         <h1>Local RAG Retrieval</h1>
-        <p class="subtitle">Cosine search over ChromaDB chunks</p>
+        <p class="subtitle">Vector, BM25, and hybrid RRF search over ChromaDB chunks</p>
       </div>
       <div class="status" id="status">Checking collection...</div>
     </header>
@@ -236,6 +236,14 @@
           </select>
         </div>
         <div class="control">
+          <label for="searchMode">Mode</label>
+          <select id="searchMode">
+            <option value="hybrid" selected>Hybrid</option>
+            <option value="vector">Vector</option>
+            <option value="bm25">BM25</option>
+          </select>
+        </div>
+        <div class="control">
           <label for="year">Year</label>
           <input id="year" type="number" min="0" placeholder="Any" />
         </div>
@@ -248,6 +256,7 @@
           <input id="documentType" type="text" placeholder="book" />
         </div>
         <button id="searchButton">Search</button>
+        <button id="rerankButton" disabled>Rerank top 5</button>
       </div>
       <div id="error"></div>
     </section>
@@ -260,11 +269,14 @@
     const errorNode = document.getElementById("error");
     const resultsNode = document.getElementById("results");
     const button = document.getElementById("searchButton");
+    const rerankButton = document.getElementById("rerankButton");
     const queryNode = document.getElementById("query");
     const topKNode = document.getElementById("topK");
+    const searchModeNode = document.getElementById("searchMode");
     const yearNode = document.getElementById("year");
     const authorNode = document.getElementById("author");
     const documentTypeNode = document.getElementById("documentType");
+    let lastSearchData = null;
 
     function escapeHtml(value) {
       return value
@@ -285,17 +297,21 @@
         const response = await fetch("/api/health");
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || "Health check failed");
-        statusNode.textContent = `${data.collection} · ${data.count} chunks · ${data.embedding_model}`;
+        statusNode.textContent = `${data.collection} | ${data.count} chunks | ${data.embedding_model}`;
       } catch (error) {
         statusNode.textContent = "Collection unavailable";
       }
     }
 
     function renderResults(data) {
+      const summaryLine = data.reranker_model
+        ? `Reranker: ${escapeHtml(data.reranker_model)} | Input candidates: ${data.input_count} | Results: ${data.results.length}`
+        : `Mode: ${escapeHtml(data.search_mode)} | Collection: ${escapeHtml(data.collection)} | Model: ${escapeHtml(data.embedding_model)} | Results: ${data.results.length}`;
       const summary = `
         <div class="summary">
           Query: <strong>${escapeHtml(data.query)}</strong><br>
-          Collection: ${escapeHtml(data.collection)} · Model: ${escapeHtml(data.embedding_model)} · Results: ${data.results.length}
+          ${summaryLine}
+          ${data.warning ? `<br><strong>${escapeHtml(data.warning)}</strong>` : ""}
         </div>
       `;
 
@@ -303,14 +319,20 @@
         <article class="result">
           <div class="result-head">
             <div>
-              <div class="rank">#${item.rank} · ${escapeHtml(item.id)}</div>
+              <div class="rank">#${item.rank} | ${escapeHtml(item.id)}</div>
               <div class="meta">
                 <span class="pill">chunk_id: ${item.chunk_id ?? "n/a"}</span>
+                <span class="pill">vector_rank: ${item.vector_rank ?? "n/a"}</span>
+                <span class="pill">bm25_rank: ${item.bm25_rank ?? "n/a"}</span>
+                <span class="pill">original_rank: ${item.original_rank ?? "n/a"}</span>
                 <span class="pill">year: ${item.year ?? "n/a"}</span>
                 <span class="pill">type: ${escapeHtml(item.document_type ?? "n/a")}</span>
                 <span class="pill">author: ${escapeHtml(item.author ?? "n/a")}</span>
                 <span class="pill">characters: ${item.characters ?? "n/a"}</span>
                 <span class="pill">distance: ${formatScore(item.distance)}</span>
+                <span class="pill">bm25: ${formatScore(item.bm25_score)}</span>
+                <span class="pill">rrf: ${formatScore(item.rrf_score)}</span>
+                <span class="pill">rerank: ${formatScore(item.rerank_score)}</span>
               </div>
               <div class="meta">
                 <span class="pill">title: ${escapeHtml(item.title ?? "n/a")}</span>
@@ -328,12 +350,15 @@
     async function runSearch() {
       const query = queryNode.value.trim();
       const topK = Number(topKNode.value);
+      const searchMode = searchModeNode.value;
       const year = yearNode.value ? Number(yearNode.value) : null;
       const author = authorNode.value.trim() || null;
       const documentType = documentTypeNode.value.trim() || null;
 
       errorNode.innerHTML = "";
       resultsNode.innerHTML = "";
+      lastSearchData = null;
+      rerankButton.disabled = true;
 
       if (!query) {
         errorNode.innerHTML = '<div class="error">Enter a query first.</div>';
@@ -341,6 +366,7 @@
       }
 
       button.disabled = true;
+      rerankButton.disabled = true;
       button.textContent = "Searching...";
 
       try {
@@ -350,6 +376,7 @@
           body: JSON.stringify({
             query,
             top_k: topK,
+            search_mode: searchMode,
             year,
             author,
             document_type: documentType,
@@ -357,6 +384,8 @@
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || "Search failed");
+        lastSearchData = data;
+        rerankButton.disabled = data.search_mode !== "hybrid" || data.results.length === 0;
         renderResults(data);
       } catch (error) {
         errorNode.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
@@ -366,7 +395,39 @@
       }
     }
 
+    async function runRerank() {
+      if (!lastSearchData || !lastSearchData.results.length) {
+        errorNode.innerHTML = '<div class="error">Run Hybrid search first.</div>';
+        return;
+      }
+
+      errorNode.innerHTML = "";
+      rerankButton.disabled = true;
+      rerankButton.textContent = "Reranking...";
+
+      try {
+        const response = await fetch("/api/rerank", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: lastSearchData.query,
+            candidates: lastSearchData.results,
+            top_n: 5,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Rerank failed");
+        renderResults(data);
+      } catch (error) {
+        errorNode.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+      } finally {
+        rerankButton.disabled = false;
+        rerankButton.textContent = "Rerank top 5";
+      }
+    }
+
     button.addEventListener("click", runSearch);
+    rerankButton.addEventListener("click", runRerank);
     queryNode.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
         runSearch();

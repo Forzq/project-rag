@@ -26,6 +26,7 @@ from src.rag_local.embeddings import (
     save_embeddings_metadata,
     save_numpy_array,
 )
+from src.rag_local.chunk_quality import filter_quality_chunks
 from src.rag_local.preprocessing import clean_extracted_markdown
 from src.rag_local.vector_store import ChromaStore
 
@@ -117,6 +118,17 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Keep extracted Markdown exactly as-is before chunking.",
     )
+    parser.add_argument(
+        "--no-quality-filter",
+        action="store_true",
+        help="Keep short cover/title chunks instead of filtering them out.",
+    )
+    parser.add_argument(
+        "--min-quality-chars",
+        type=int,
+        default=150,
+        help="Minimum characters for short technical chunks to be kept.",
+    )
     return parser.parse_args()
 
 
@@ -171,6 +183,16 @@ def main() -> None:
     print("Step 2/4: retrieval embeddings")
     chunks = parse_chunks_file(chunks_file)
     enriched_chunks = enrich_chunks(chunks, document_metadata)
+    if not args.no_quality_filter:
+        enriched_chunks, removed_chunks = filter_quality_chunks(
+            enriched_chunks,
+            min_characters=args.min_quality_chars,
+        )
+        print(f"Filtered {len(removed_chunks)} low-quality chunks")
+
+    if not enriched_chunks:
+        raise ValueError("No chunks left after quality filtering.")
+
     texts = [str(chunk["text"]) for chunk in enriched_chunks]
     retrieval_embedder = OpenRouterEmbedder(
         model=args.embedding_model,

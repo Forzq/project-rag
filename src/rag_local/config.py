@@ -11,4 +11,4 @@ DEFAULT_CHROMA_COLLECTION = "harry_potter_openai_1536"
 DEFAULT_RETRIEVAL_MODEL = "openai/text-embedding-3-small"
 DEFAULT_SEMANTIC_CHUNKING_MODEL = "qwen/qwen3-embedding-4b"
 DEFAULT_HF_MODEL = "intfloat/e5-large-v2"
-
+DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-base"

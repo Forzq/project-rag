@@ -106,6 +106,28 @@ class ChromaRetriever:
     def count(self) -> int:
         return self.collection.count()
 
+    def get_stored_chunks(self, where: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        if where:
+            raw_results = self.collection.get(
+                where=where,
+                include=["documents", "metadatas"],
+            )
+        else:
+            raw_results = self.collection.get(include=["documents", "metadatas"])
+
+        ids = raw_results.get("ids", [])
+        documents = raw_results.get("documents", [])
+        metadatas = raw_results.get("metadatas", [])
+
+        return [
+            {
+                "id": str(document_id),
+                "text": documents[index],
+                "metadata": metadatas[index] or {},
+            }
+            for index, document_id in enumerate(ids)
+        ]
+
     def search(
         self,
         query_embedding: list[float],
