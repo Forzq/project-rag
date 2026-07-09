@@ -30,6 +30,9 @@ def make_args(**overrides: object) -> argparse.Namespace:
         "document_type": "book",
         "tier": "cost_effective",
         "collection": None,
+        "chunking_method": "recursive",
+        "recursive_chunk_size": 1500,
+        "recursive_overlap": 200,
         "semantic_max_chars": 2000,
         "semantic_min_chars": 300,
         "break_percentile": 80.0,
@@ -139,6 +142,12 @@ class TestWatchPdfInput(unittest.TestCase):
         self.assertIn("hp_1", command)
         self.assertIn("--collection", command)
         self.assertIn("test_collection", command)
+        self.assertIn("--chunking-method", command)
+        self.assertIn("recursive", command)
+        self.assertIn("--recursive-chunk-size", command)
+        self.assertIn("1500", command)
+        self.assertIn("--recursive-overlap", command)
+        self.assertIn("200", command)
 
 
 if __name__ == "__main__":

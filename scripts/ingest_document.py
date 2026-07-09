@@ -13,7 +13,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.rag_local.chunk_io import parse_chunks_file, write_chunks
-from src.rag_local.chunking import split_semantic
+from src.rag_local.chunking import split_recursive, split_semantic
 from src.rag_local.config import (
     DEFAULT_CHROMA_COLLECTION,
     DEFAULT_CHROMA_DB_PATH,
@@ -77,6 +77,24 @@ def parse_args() -> argparse.Namespace:
         "--embedding-model",
         default=DEFAULT_RETRIEVAL_MODEL,
         help="OpenRouter model used for retrieval embeddings.",
+    )
+    parser.add_argument(
+        "--chunking-method",
+        default="recursive",
+        choices=["recursive", "semantic"],
+        help="Chunking method used before retrieval embeddings.",
+    )
+    parser.add_argument(
+        "--recursive-chunk-size",
+        type=int,
+        default=1500,
+        help="Maximum recursive chunk size in characters.",
+    )
+    parser.add_argument(
+        "--recursive-overlap",
+        type=int,
+        default=200,
+        help="Number of characters repeated between recursive chunks.",
     )
     parser.add_argument(
         "--semantic-max-chars",
@@ -151,45 +169,65 @@ def build_document_metadata(args: argparse.Namespace) -> dict[str, Any]:
 def enrich_chunks(
     chunks: list[dict[str, Any]],
     document_metadata: dict[str, Any],
+    chunking_method: str,
 ) -> list[dict[str, Any]]:
-    return [{**chunk, **document_metadata} for chunk in chunks]
+    return [
+        {
+            **chunk,
+            **document_metadata,
+            "chunking_method": chunking_method,
+        }
+        for chunk in chunks
+    ]
 
 
-def main() -> None:
-    load_dotenv()
-    args = parse_args()
-
-    document_metadata = build_document_metadata(args)
-    chunks_output_dir = args.chunks_dir / args.doc_id
-    embeddings_output_dir = args.embeddings_dir / f"{args.doc_id}_semantic"
-    chunks_file = chunks_output_dir / "semantic_chunks.md"
-    embeddings_file = (
-        embeddings_output_dir / f"{sanitize_model_name(args.embedding_model)}.npy"
-    )
-    metadata_file = embeddings_output_dir / "chunks_metadata.json"
-
-    print("Step 1/4: semantic chunking")
-    source_text = args.input.read_text(encoding="utf-8")
-    if not args.no_clean:
-        source_text = clean_extracted_markdown(source_text)
+def build_chunk_texts(source_text: str, args: argparse.Namespace) -> list[str]:
+    if args.chunking_method == "recursive":
+        return split_recursive(
+            text=source_text,
+            chunk_size=args.recursive_chunk_size,
+            overlap=args.recursive_overlap,
+        )
 
     semantic_embedder = OpenRouterEmbedder(
         model=args.semantic_model,
         batch_size=args.semantic_batch_size,
     )
-    chunk_texts = split_semantic(
+    return split_semantic(
         text=source_text,
         max_chars=args.semantic_max_chars,
         embedder=semantic_embedder,
         break_percentile=args.break_percentile,
         min_chunk_chars=args.semantic_min_chars,
     )
-    write_chunks(chunk_texts, chunks_file, "Semantic")
+
+
+def main() -> None:
+    load_dotenv()
+    args = parse_args()
+
+    chunking_method = args.chunking_method
+    document_metadata = build_document_metadata(args)
+    chunks_output_dir = args.chunks_dir / args.doc_id
+    embeddings_output_dir = args.embeddings_dir / f"{args.doc_id}_{chunking_method}"
+    chunks_file = chunks_output_dir / f"{chunking_method}_chunks.md"
+    embeddings_file = (
+        embeddings_output_dir / f"{sanitize_model_name(args.embedding_model)}.npy"
+    )
+    metadata_file = embeddings_output_dir / "chunks_metadata.json"
+
+    print(f"Step 1/4: {chunking_method} chunking")
+    source_text = args.input.read_text(encoding="utf-8")
+    if not args.no_clean:
+        source_text = clean_extracted_markdown(source_text)
+
+    chunk_texts = build_chunk_texts(source_text, args)
+    write_chunks(chunk_texts, chunks_file, chunking_method.title())
     print(f"Saved {len(chunk_texts)} chunks to {chunks_file}")
 
     print("Step 2/4: retrieval embeddings")
     chunks = parse_chunks_file(chunks_file)
-    enriched_chunks = enrich_chunks(chunks, document_metadata)
+    enriched_chunks = enrich_chunks(chunks, document_metadata, chunking_method)
     if not args.no_quality_filter:
         enriched_chunks, removed_chunks = filter_quality_chunks(
             enriched_chunks,
