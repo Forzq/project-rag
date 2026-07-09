@@ -7,14 +7,20 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #f6f7f9;
+      --bg: #f8f7fb;
       --panel: #ffffff;
       --text: #1e2329;
       --muted: #667085;
       --border: #d9dee7;
-      --accent: #2563eb;
-      --accent-strong: #1d4ed8;
+      --accent: #7c3aed;
+      --accent-strong: #6d28d9;
+      --accent-soft: #ede9fe;
+      --accent-quiet: #f5f3ff;
       --ok: #047857;
+      --chat-bg: #fbfaff;
+      --assistant-bubble: #ffffff;
+      --user-bubble: #7c3aed;
+      --shadow: 0 18px 55px rgba(46, 25, 91, 0.08);
     }
 
     * { box-sizing: border-box; }
@@ -94,7 +100,7 @@
     textarea:focus,
     select:focus,
     input:focus {
-      outline: 2px solid rgba(37, 99, 235, 0.2);
+      outline: 2px solid rgba(124, 58, 237, 0.2);
       border-color: var(--accent);
     }
 
@@ -228,40 +234,6 @@
       margin-top: 10px;
     }
 
-    .chat-history {
-      margin-bottom: 14px;
-    }
-
-    .chat-message {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-
-    .chat-message.user {
-      border-left: 4px solid var(--accent);
-    }
-
-    .chat-message.assistant {
-      border-left: 4px solid var(--ok);
-    }
-
-    .message-role {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-
-    .message-content {
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      font-size: 14px;
-    }
-
     .secondary-button {
       background: #fff;
       color: var(--text);
@@ -270,6 +242,275 @@
 
     .secondary-button:hover {
       background: #eef2f7;
+    }
+
+    .chat-shell {
+      height: min(760px, calc(100vh - 160px));
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .chat-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .chat-title {
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .chat-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .chat-actions {
+      display: flex;
+      align-items: end;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .chat-actions .control {
+      min-width: 150px;
+    }
+
+    .compact-label {
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: var(--muted);
+    }
+
+    .chat-thread {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      padding: 18px;
+      background:
+        linear-gradient(180deg, rgba(245, 243, 255, 0.72), rgba(255, 255, 255, 0.88) 36%),
+        var(--chat-bg);
+    }
+
+    .empty-chat {
+      margin: auto;
+      max-width: 420px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty-chat-title {
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .message-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      max-width: 88%;
+    }
+
+    .message-row.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message-row.assistant,
+    .message-row.error {
+      align-self: flex-start;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0;
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      border: 1px solid #ddd6fe;
+    }
+
+    .message-row.user .avatar {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .message-bubble {
+      min-width: 0;
+      max-width: min(760px, 100%);
+      border-radius: 8px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: var(--assistant-bubble);
+    }
+
+    .message-row.user .message-bubble {
+      color: #fff;
+      border-color: var(--accent);
+      background: var(--user-bubble);
+    }
+
+    .message-row.error .message-bubble {
+      color: #9f1239;
+      border-color: #fecdd3;
+      background: #fff1f2;
+    }
+
+    .message-role {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .message-row.user .message-role {
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    .message-content {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 15px;
+    }
+
+    .assistant-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .assistant-meta .pill {
+      background: var(--accent-quiet);
+      border-color: #ddd6fe;
+    }
+
+    .source-details,
+    .map-details {
+      margin-top: 10px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+
+    .source-details summary,
+    .map-details summary {
+      cursor: pointer;
+      color: var(--accent-strong);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .source-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .source-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fcfcfd;
+    }
+
+    .source-title {
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .source-preview {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .thinking {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 22px;
+    }
+
+    .thinking span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1s infinite ease-in-out;
+    }
+
+    .thinking span:nth-child(2) { animation-delay: 0.16s; }
+    .thinking span:nth-child(3) { animation-delay: 0.32s; }
+
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: 0.28; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-3px); }
+    }
+
+    .chat-composer-wrap {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .chat-composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: end;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .chat-input {
+      min-height: 44px;
+      max-height: 150px;
+      resize: none;
+      border: 0;
+      border-radius: 0;
+      padding: 10px;
+      background: transparent;
+    }
+
+    .chat-input:focus {
+      outline: none;
+      border-color: transparent;
+    }
+
+    .send-button {
+      min-width: 94px;
+      background: var(--accent);
     }
 
     .error {
@@ -288,6 +529,36 @@
       .control, button { width: 100%; }
       .result-head { display: block; }
       .score { margin-top: 8px; }
+      .chat-shell {
+        height: calc(100vh - 132px);
+        min-height: 520px;
+      }
+      .chat-topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .chat-actions {
+        justify-content: stretch;
+      }
+      .chat-actions .control,
+      .chat-actions button {
+        width: 100%;
+      }
+      .message-row {
+        max-width: 100%;
+      }
+      .avatar {
+        display: none;
+      }
+      .chat-thread {
+        padding: 14px;
+      }
+      .chat-composer {
+        grid-template-columns: 1fr;
+      }
+      .send-button {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -352,27 +623,36 @@
     </section>
 
     <section class="view" id="chatView" hidden>
-      <section class="search-panel">
-        <label for="chatQuery">Question</label>
-        <textarea id="chatQuery" placeholder="Example: Кто такой Гарри Поттер?"></textarea>
-
-        <div class="controls">
-          <div class="control">
-            <label for="contextStrategy">Context strategy</label>
+      <section class="chat-shell">
+        <div class="chat-topbar">
+          <div>
+            <div class="chat-title">RAG Chat</div>
+            <div class="chat-subtitle" id="chatMemoryStatus">Память пуста</div>
+          </div>
+          <div class="chat-actions">
+            <div class="control">
+              <label class="compact-label" for="contextStrategy">Strategy</label>
             <select id="contextStrategy">
               <option value="auto" selected>Auto</option>
               <option value="direct">Direct</option>
               <option value="map_reduce">Map-reduce</option>
             </select>
+            </div>
+            <button class="secondary-button" id="clearChatButton" type="button">Clear memory</button>
           </div>
-          <button id="askButton">Ask</button>
-          <button class="secondary-button" id="clearChatButton" type="button">Clear memory</button>
         </div>
-        <div id="chatError"></div>
-      </section>
 
-      <section class="chat-history" id="chatMessages"></section>
-      <section id="answerResults"></section>
+        <section class="chat-thread" id="chatMessages"></section>
+
+        <div class="chat-composer-wrap">
+          <div id="chatError"></div>
+          <form class="chat-composer" id="chatForm">
+            <textarea class="chat-input" id="chatQuery" rows="1" placeholder="Напишите вопрос по документам"></textarea>
+            <button class="send-button" id="askButton" type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+      <section id="answerResults" hidden></section>
     </section>
   </main>
 
@@ -395,15 +675,19 @@
     const chatErrorNode = document.getElementById("chatError");
     const answerResultsNode = document.getElementById("answerResults");
     const chatMessagesNode = document.getElementById("chatMessages");
+    const chatMemoryStatusNode = document.getElementById("chatMemoryStatus");
     const askButton = document.getElementById("askButton");
     const clearChatButton = document.getElementById("clearChatButton");
+    const chatForm = document.getElementById("chatForm");
     const chatQueryNode = document.getElementById("chatQuery");
     const contextStrategyNode = document.getElementById("contextStrategy");
     let lastSearchData = null;
     let chatHistory = [];
+    let chatThread = [];
+    let messageId = 0;
 
     function escapeHtml(value) {
-      return value
+      return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -479,74 +763,131 @@
       resultsNode.innerHTML = summary + cards;
     }
 
-    function renderAnswer(data) {
-      const summaries = data.map_summaries && data.map_summaries.length
-        ? `
-          <div class="summary">Map summaries</div>
-          ${data.map_summaries.map((summary, index) => `
-            <article class="result">
-              <div class="rank">Map #${index + 1}</div>
-              <div class="chunk-text">${escapeHtml(summary)}</div>
-            </article>
-          `).join("")}
-        `
+    function updateChatMemoryStatus() {
+      const turns = Math.floor(chatHistory.length / 2);
+      chatMemoryStatusNode.textContent = turns
+        ? `Память: ${turns} ${turns === 1 ? "диалог" : "диалогов"}`
+        : "Память пуста";
+    }
+
+    function scrollChatToBottom() {
+      requestAnimationFrame(() => {
+        chatMessagesNode.scrollTop = chatMessagesNode.scrollHeight;
+      });
+    }
+
+    function sourcePreview(text) {
+      const normalized = String(text ?? "").replace(/\s+/g, " ").trim();
+      return normalized.length > 360 ? `${normalized.slice(0, 360)}...` : normalized;
+    }
+
+    function renderAssistantDetails(data) {
+      if (!data) return "";
+
+      const standaloneQuery = data.standalone_query && data.standalone_query !== data.query
+        ? `<span class="pill">query: ${escapeHtml(data.standalone_query)}</span>`
         : "";
-      const sources = data.sources.map((item) => `
-        <article class="result">
-          <div class="result-head">
-            <div>
-              <div class="rank">Source #${item.rank} | ${escapeHtml(item.id)}</div>
-              <div class="meta">
-                <span class="pill">original_rank: ${item.original_rank ?? "n/a"}</span>
-                <span class="pill">rerank: ${formatScore(item.rerank_score)}</span>
-                <span class="pill">year: ${item.year ?? "n/a"}</span>
-                <span class="pill">title: ${escapeHtml(item.title ?? "n/a")}</span>
-              </div>
-            </div>
+      const warning = data.warning
+        ? `<span class="pill">${escapeHtml(data.warning)}</span>`
+        : "";
+      const sources = (data.sources || []).map((item, index) => `
+        <div class="source-item">
+          <div class="source-title">#${index + 1} ${escapeHtml(item.title ?? item.doc_id ?? item.id)}</div>
+          <div class="assistant-meta">
+            <span class="pill">chunk: ${item.chunk_id ?? "n/a"}</span>
+            <span class="pill">year: ${item.year ?? "n/a"}</span>
+            <span class="pill">rerank: ${formatScore(item.rerank_score)}</span>
           </div>
-          <div class="chunk-text">${escapeHtml(item.text)}</div>
-        </article>
+          <div class="source-preview">${escapeHtml(sourcePreview(item.text))}</div>
+        </div>
+      `).join("");
+      const mapSummaries = (data.map_summaries || []).map((summary, index) => `
+        <div class="source-item">
+          <div class="source-title">Map #${index + 1}</div>
+          <div class="source-preview">${escapeHtml(summary)}</div>
+        </div>
       `).join("");
 
-      answerResultsNode.innerHTML = `
-        <article class="answer">
-          <div class="summary">
-            Query: <strong>${escapeHtml(data.query)}</strong><br>
-            ${data.standalone_query && data.standalone_query !== data.query ? `Standalone query: <strong>${escapeHtml(data.standalone_query)}</strong><br>` : ""}
-            Model: ${escapeHtml(data.chat_model)} | Strategy: ${escapeHtml(data.strategy)} | Context tokens: ${data.estimated_context_tokens}/${data.context_token_limit}<br>
-            Retrieval top-k: ${data.retrieval_top_k} | Rerank top-n: ${data.rerank_top_n}
-            ${data.warning ? `<br><strong>${escapeHtml(data.warning)}</strong>` : ""}
+      return `
+        <div class="assistant-meta">
+          <span class="pill">${escapeHtml(data.chat_model)}</span>
+          <span class="pill">${escapeHtml(data.strategy)}</span>
+          <span class="pill">context: ${data.estimated_context_tokens}/${data.context_token_limit}</span>
+          <span class="pill">retrieval: ${data.retrieval_top_k}</span>
+          <span class="pill">rerank: ${data.rerank_top_n}</span>
+          ${standaloneQuery}
+          ${warning}
+        </div>
+        ${sources ? `
+          <details class="source-details">
+            <summary>Sources (${data.sources.length})</summary>
+            <div class="source-list">${sources}</div>
+          </details>
+        ` : ""}
+        ${mapSummaries ? `
+          <details class="map-details">
+            <summary>Map summaries (${data.map_summaries.length})</summary>
+            <div class="source-list">${mapSummaries}</div>
+          </details>
+        ` : ""}
+      `;
+    }
+
+    function renderMessage(message) {
+      const isUser = message.role === "user";
+      const isError = message.error;
+      const rowClass = isError ? "error" : message.role;
+      const roleLabel = isUser ? "You" : "RAG";
+      const avatarLabel = isUser ? "You" : "AI";
+      const content = message.pending
+        ? '<span class="thinking"><span></span><span></span><span></span></span>'
+        : escapeHtml(message.content);
+
+      return `
+        <article class="message-row ${rowClass}">
+          <div class="avatar">${avatarLabel}</div>
+          <div class="message-bubble">
+            <div class="message-role">${roleLabel}</div>
+            <div class="message-content">${content}</div>
+            ${message.data ? renderAssistantDetails(message.data) : ""}
           </div>
-          <div class="answer-text">${escapeHtml(data.answer)}</div>
         </article>
-        ${summaries}
-        <div class="summary">Sources</div>
-        ${sources}
       `;
     }
 
     function renderChatHistory() {
-      if (!chatHistory.length) {
-        chatMessagesNode.innerHTML = "";
+      updateChatMemoryStatus();
+
+      if (!chatThread.length) {
+        chatMessagesNode.innerHTML = `
+          <div class="empty-chat">
+            <div class="empty-chat-title">RAG Chat</div>
+            <div>Задайте вопрос по загруженным документам.</div>
+          </div>
+        `;
         return;
       }
 
-      chatMessagesNode.innerHTML = chatHistory.map((message) => {
-        const label = message.role === "user" ? "You" : "Assistant";
-        return `
-          <article class="chat-message ${message.role}">
-            <div class="message-role">${label}</div>
-            <div class="message-content">${escapeHtml(message.content)}</div>
-          </article>
-        `;
-      }).join("");
+      chatMessagesNode.innerHTML = chatThread.map(renderMessage).join("");
+      scrollChatToBottom();
     }
 
     function clearChatMemory() {
       chatHistory = [];
-      chatMessagesNode.innerHTML = "";
+      chatThread = [];
       answerResultsNode.innerHTML = "";
       chatErrorNode.innerHTML = "";
+      renderChatHistory();
+    }
+
+    function nextMessageId() {
+      messageId += 1;
+      return `message-${messageId}`;
+    }
+
+    function resizeChatInput() {
+      chatQueryNode.style.height = "auto";
+      chatQueryNode.style.height = `${Math.min(chatQueryNode.scrollHeight, 150)}px`;
     }
 
     async function runSearch() {
@@ -628,7 +969,9 @@
       }
     }
 
-    async function runAnswer() {
+    async function runAnswer(event) {
+      if (event) event.preventDefault();
+
       const query = chatQueryNode.value.trim();
       const strategy = contextStrategyNode.value;
       const historyForRequest = chatHistory.slice();
@@ -641,8 +984,15 @@
         return;
       }
 
+      const pendingId = nextMessageId();
+      chatThread.push({ id: nextMessageId(), role: "user", content: query });
+      chatThread.push({ id: pendingId, role: "assistant", content: "", pending: true });
+      renderChatHistory();
+      chatQueryNode.value = "";
+      resizeChatInput();
+
       askButton.disabled = true;
-      askButton.textContent = "Thinking...";
+      askButton.textContent = "Sending...";
 
       try {
         const response = await fetch("/api/answer", {
@@ -660,14 +1010,31 @@
         if (!response.ok) throw new Error(data.detail || "Answer generation failed");
         chatHistory.push({ role: "user", content: query });
         chatHistory.push({ role: "assistant", content: data.answer });
+        const pendingIndex = chatThread.findIndex((message) => message.id === pendingId);
+        if (pendingIndex >= 0) {
+          chatThread[pendingIndex] = {
+            id: pendingId,
+            role: "assistant",
+            content: data.answer,
+            data,
+          };
+        }
         renderChatHistory();
-        chatQueryNode.value = "";
-        renderAnswer(data);
       } catch (error) {
+        const pendingIndex = chatThread.findIndex((message) => message.id === pendingId);
+        if (pendingIndex >= 0) {
+          chatThread[pendingIndex] = {
+            id: pendingId,
+            role: "assistant",
+            content: error.message,
+            error: true,
+          };
+        }
         chatErrorNode.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+        renderChatHistory();
       } finally {
         askButton.disabled = false;
-        askButton.textContent = "Ask";
+        askButton.textContent = "Send";
       }
     }
 
@@ -675,7 +1042,7 @@
     chatTab.addEventListener("click", () => switchView("chat"));
     button.addEventListener("click", runSearch);
     rerankButton.addEventListener("click", runRerank);
-    askButton.addEventListener("click", runAnswer);
+    chatForm.addEventListener("submit", runAnswer);
     clearChatButton.addEventListener("click", clearChatMemory);
     queryNode.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
@@ -683,12 +1050,16 @@
       }
     });
     chatQueryNode.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
         runAnswer();
       }
     });
+    chatQueryNode.addEventListener("input", resizeChatInput);
 
     loadHealth();
+    renderChatHistory();
+    resizeChatInput();
   </script>
 </body>
 </html>
